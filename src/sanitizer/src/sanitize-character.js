@@ -1,5 +1,5 @@
 const sanitizeCharacter = (character) => {
-  const { id, name, status, species, type, gender, origin, location, image } =
+  const { id, name, status, species, type, gender, origin, location, image , source } =
     character;
 
   return {
@@ -12,6 +12,7 @@ const sanitizeCharacter = (character) => {
     origin: origin.name,
     location: location.name,
     image,
+    source,
   };
 };
 

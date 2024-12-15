@@ -111,7 +111,10 @@ export const handler = async (event) => {
     ]);
 
     let results = await mergeCharacters(
-      apiResponse.data.results,
+      apiResponse.data.results.map((char) => ({
+        ...char,
+        source: "canonical",
+      })),
       editedCharacters
     );
 
