@@ -81,6 +81,11 @@ const mergeCharacters = async (apiCharacters, customCharacters) => {
   return await invokeSanitizer(characters);
 };
 
+const addSource = (char) => ({
+  ...char,
+  source: "canonical",
+});
+
 export const handler = async (event) => {
   try {
     const characterId = event.pathParameters?.id;
@@ -97,7 +102,7 @@ export const handler = async (event) => {
       }
 
       const response = await axios.get(`${API_URL}/character/${characterId}`);
-      const sanitizedCharacter = await invokeSanitizer(response.data);
+      const sanitizedCharacter = await invokeSanitizer(addSource(response.data));
 
       return {
         statusCode: 200,
@@ -111,10 +116,7 @@ export const handler = async (event) => {
     ]);
 
     let results = await mergeCharacters(
-      apiResponse.data.results.map((char) => ({
-        ...char,
-        source: "canonical",
-      })),
+      apiResponse.data.results.map(addSource),
       editedCharacters
     );
 
