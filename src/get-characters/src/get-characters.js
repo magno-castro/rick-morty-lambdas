@@ -2,8 +2,8 @@ import axios from "axios";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
   DynamoDBDocumentClient,
-  ScanCommand,
   GetCommand,
+  ScanCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 
@@ -37,9 +37,32 @@ const getCharacterFromDB = async (id) => {
   return response.Item;
 };
 
-const getAllCustomCharacters = async () => {
+const getAllEditedCharacters = async () => {
   const command = new ScanCommand({
     TableName: TABLE_NAME,
+    FilterExpression: "#source = :sourceValue",
+    ExpressionAttributeNames: {
+      "#source": "source",
+    },
+    ExpressionAttributeValues: {
+      ":sourceValue": "canonical",
+    },
+  });
+
+  const response = await docClient.send(command);
+  return response.Items || [];
+};
+
+const getAllNewCharacters = async () => {
+  const command = new ScanCommand({
+    TableName: TABLE_NAME,
+    FilterExpression: "#source = :sourceValue",
+    ExpressionAttributeNames: {
+      "#source": "source",
+    },
+    ExpressionAttributeValues: {
+      ":sourceValue": "filler",
+    },
   });
 
   const response = await docClient.send(command);
@@ -61,6 +84,7 @@ const mergeCharacters = async (apiCharacters, customCharacters) => {
 export const handler = async (event) => {
   try {
     const characterId = event.pathParameters?.id;
+    const page = event.queryStringParameters?.page || "1";
 
     if (characterId) {
       const customCharacter = await getCharacterFromDB(characterId);
@@ -81,21 +105,25 @@ export const handler = async (event) => {
       };
     }
 
-    const [apiResponse, customCharacters] = await Promise.all([
-      axios.get(`${API_URL}/character`),
-      getAllCustomCharacters(),
+    const [apiResponse, editedCharacters] = await Promise.all([
+      axios.get(`${API_URL}/character?page=${page}`),
+      getAllEditedCharacters(),
     ]);
 
-    const mergedResults = {
-      results: await mergeCharacters(
-        apiResponse.data.results,
-        customCharacters
-      ),
-    };
+    let results = await mergeCharacters(
+      apiResponse.data.results,
+      editedCharacters
+    );
+
+    if (page === "1") {
+      results = [...(await getAllNewCharacters()), ...results];
+    }
 
     return {
       statusCode: 200,
-      body: JSON.stringify(mergedResults),
+      body: JSON.stringify({
+        results: results,
+      }),
     };
   } catch (error) {
     return {
