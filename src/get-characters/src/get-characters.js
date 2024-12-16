@@ -37,15 +37,22 @@ const getCharacterFromDB = async (id) => {
   return response.Item;
 };
 
-const getAllEditedCharacters = async () => {
+const getAllEditedCharacters = async (nameFilter) => {
+  const sourceFilterExpression = "#source = :sourceValue";
+  const nameFilterExpression = nameFilter
+    ? " AND contains(#name, :nameValue)"
+    : "";
+
   const command = new ScanCommand({
     TableName: TABLE_NAME,
-    FilterExpression: "#source = :sourceValue",
+    FilterExpression: sourceFilterExpression + nameFilterExpression,
     ExpressionAttributeNames: {
       "#source": "source",
+      ...(nameFilter && { "#name": "name" }),
     },
     ExpressionAttributeValues: {
       ":sourceValue": "canonical",
+      ...(nameFilter && { ":nameValue": nameFilter }),
     },
   });
 
@@ -53,16 +60,26 @@ const getAllEditedCharacters = async () => {
   return response.Items || [];
 };
 
-const getAllNewCharacters = async () => {
+const getAllNewCharacters = async (nameFilter) => {
+  const sourceFilterExpression = "#source = :sourceValue";
+  const deletedFilterExpression =
+    " AND (attribute_not_exists(deleted_at) OR deleted_at = :emptyValue)";
+  const nameFilterExpression = nameFilter
+    ? " AND contains(#name, :nameValue)"
+    : "";
+
   const command = new ScanCommand({
     TableName: TABLE_NAME,
-    FilterExpression: "#source = :sourceValue AND (attribute_not_exists(deleted_at) OR deleted_at = :emptyValue)",
+    FilterExpression:
+      sourceFilterExpression + deletedFilterExpression + nameFilterExpression,
     ExpressionAttributeNames: {
       "#source": "source",
+      ...(nameFilter && { "#name": "name" }),
     },
     ExpressionAttributeValues: {
       ":sourceValue": "filler",
-      ":emptyValue": ""
+      ":emptyValue": "",
+      ...(nameFilter && { ":nameValue": nameFilter }),
     },
   });
 
@@ -92,6 +109,7 @@ const addSource = (char) => ({
 export const handler = async (event) => {
   try {
     const characterId = event.pathParameters?.id;
+    const name = event.queryStringParameters?.name;
     const page = event.queryStringParameters?.page || "1";
 
     if (characterId) {
@@ -124,18 +142,31 @@ export const handler = async (event) => {
       };
     }
 
-    const [apiResponse, editedCharacters] = await Promise.all([
-      axios.get(`${API_URL}/character?page=${page}`),
-      getAllEditedCharacters(),
-    ]);
+    let apiResults = [];
 
-    let results = await mergeCharacters(
-      apiResponse.data.results.map(addSource),
-      editedCharacters
-    );
+    // Check if the API response is empty and handle it
+    try {
+      const apiUrl = name
+        ? `${API_URL}/character?page=${page}&name=${name}`
+        : `${API_URL}/character?page=${page}`;
+
+      const apiResponse = await axios.get(apiUrl);
+      apiResults = apiResponse.data.results;
+    } catch (error) {
+      if (error.response?.status !== 404) {
+        throw error;
+      }
+    }
+
+    const editedCharacters = await getAllEditedCharacters(name);
+
+    let results =
+      apiResults.length === 0
+        ? editedCharacters
+        : await mergeCharacters(apiResults.map(addSource), editedCharacters);
 
     if (page === "1") {
-      results = [...(await getAllNewCharacters()), ...results];
+      results = [...(await getAllNewCharacters(name)), ...results];
     }
 
     return {
