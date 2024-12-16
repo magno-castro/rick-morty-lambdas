@@ -69,12 +69,12 @@ const getAllNewCharacters = async () => {
   return response.Items || [];
 };
 
-const mergeCharacters = async (apiCharacters, customCharacters) => {
-  const customMap = new Map(customCharacters.map((char) => [char.id, char]));
+const mergeCharacters = async (apiCharacters, dbCharacters) => {
+  const customMap = new Map(dbCharacters.map((char) => [char.id, char]));
 
   const characters = apiCharacters.map((char) => {
-    const customChar = customMap.get(char.id);
-    if (customChar) return customChar;
+    const dbChar = customMap.get(char.id);
+    if (dbChar) return dbChar;
     return char;
   });
 

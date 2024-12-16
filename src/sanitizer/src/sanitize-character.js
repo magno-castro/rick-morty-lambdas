@@ -9,8 +9,8 @@ const sanitizeCharacter = (character) => {
     species,
     type,
     gender,
-    origin: origin.name,
-    location: location.name,
+    origin: origin.name || origin,
+    location: location.name || location,
     image,
     source,
   };
