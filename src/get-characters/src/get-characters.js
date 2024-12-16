@@ -56,12 +56,13 @@ const getAllEditedCharacters = async () => {
 const getAllNewCharacters = async () => {
   const command = new ScanCommand({
     TableName: TABLE_NAME,
-    FilterExpression: "#source = :sourceValue",
+    FilterExpression: "#source = :sourceValue AND (attribute_not_exists(deleted_at) OR deleted_at = :emptyValue)",
     ExpressionAttributeNames: {
       "#source": "source",
     },
     ExpressionAttributeValues: {
       ":sourceValue": "filler",
+      ":emptyValue": ""
     },
   });
 
@@ -72,11 +73,13 @@ const getAllNewCharacters = async () => {
 const mergeCharacters = async (apiCharacters, dbCharacters) => {
   const customMap = new Map(dbCharacters.map((char) => [char.id, char]));
 
-  const characters = apiCharacters.map((char) => {
-    const dbChar = customMap.get(char.id);
-    if (dbChar) return dbChar;
-    return char;
-  });
+  const characters = apiCharacters
+    .map((char) => {
+      const dbChar = customMap.get(char.id);
+      if (dbChar) return dbChar;
+      return char;
+    })
+    .filter((char) => !char.deleted_at);
 
   return await invokeSanitizer(characters);
 };
@@ -95,14 +98,25 @@ export const handler = async (event) => {
       const customCharacter = await getCharacterFromDB(characterId);
 
       if (customCharacter) {
-        return {
-          statusCode: 200,
-          body: JSON.stringify(customCharacter),
-        };
+        if (customCharacter.deleted_at) {
+          return {
+            statusCode: 404,
+            body: JSON.stringify({
+              message: "Character not found",
+            }),
+          };
+        } else {
+          return {
+            statusCode: 200,
+            body: JSON.stringify(customCharacter),
+          };
+        }
       }
 
       const response = await axios.get(`${API_URL}/character/${characterId}`);
-      const sanitizedCharacter = await invokeSanitizer(addSource(response.data));
+      const sanitizedCharacter = await invokeSanitizer(
+        addSource(response.data)
+      );
 
       return {
         statusCode: 200,

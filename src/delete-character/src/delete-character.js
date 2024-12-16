@@ -34,9 +34,9 @@ export const handler = async (event) => {
     if (!id) {
       return {
         statusCode: 400,
-        body: {
+        body: JSON.stringify({
           message: "Character ID is required",
-        },
+        }),
       };
     }
 
@@ -50,10 +50,10 @@ export const handler = async (event) => {
     if (existingCharacter?.deleted_at) {
       return {
         statusCode: 400,
-        body: {
+        body: JSON.stringify({
           message: "Character is already deleted",
           deleted_at: existingCharacter.deleted_at,
-        },
+        }),
       };
     }
 
@@ -74,9 +74,9 @@ export const handler = async (event) => {
         if (apiError.response?.status === 404) {
           return {
             statusCode: 404,
-            body: {
+            body: JSON.stringify({
               message: "Character not found",
-            },
+            }),
           };
         }
         throw apiError;
@@ -98,14 +98,14 @@ export const handler = async (event) => {
 
     return {
       statusCode: 200,
-      body: characterToUpdate,
+      body: JSON.stringify(characterToUpdate),
     };
   } catch (error) {
     return {
       statusCode: 500,
-      body: {
+      body: JSON.stringify({
         message: error.message,
-      },
+      }),
     };
   }
 };
