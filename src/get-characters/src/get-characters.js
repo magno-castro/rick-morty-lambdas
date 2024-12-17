@@ -39,22 +39,19 @@ const getCharacterFromDB = async (id) => {
 
 const getAllEditedCharacters = async (nameFilter) => {
   const sourceFilterExpression = "#source = :sourceValue";
-  const deletedFilterExpression =
-    " AND (attribute_not_exists(deleted_at) OR deleted_at = :emptyValue)";
   const nameFilterExpression = nameFilter
     ? " AND contains(#name, :nameValue)"
     : "";
 
   const command = new ScanCommand({
     TableName: TABLE_NAME,
-    FilterExpression: sourceFilterExpression + deletedFilterExpression + nameFilterExpression,
+    FilterExpression: sourceFilterExpression + nameFilterExpression,
     ExpressionAttributeNames: {
       "#source": "source",
       ...(nameFilter && { "#name": "name" }),
     },
     ExpressionAttributeValues: {
       ":sourceValue": "canonical",
-      ":emptyValue": "",
       ...(nameFilter && { ":nameValue": nameFilter }),
     },
   });
