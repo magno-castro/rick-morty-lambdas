@@ -6,6 +6,7 @@ import {
   ScanCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
+import { toTitleCase } from "titlecase";
 
 const API_URL = "https://rickandmortyapi.com/api";
 const TABLE_NAME = "rick-morty-table";
@@ -109,8 +110,12 @@ const addSource = (char) => ({
 export const handler = async (event) => {
   try {
     const characterId = event.pathParameters?.id;
-    const name = event.queryStringParameters?.name;
     const page = event.queryStringParameters?.page || "1";
+    let name = event.queryStringParameters?.name;
+
+    if (name) {
+      name = toTitleCase(name);
+    }
 
     if (characterId) {
       const customCharacter = await getCharacterFromDB(characterId);
